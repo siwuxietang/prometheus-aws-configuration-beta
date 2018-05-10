@@ -1,7 +1,7 @@
 /**
-* ## Project: app-ecs-nodes
+* ## Project: app-ecs-container-instances
 *
-* Create ECS worker nodes
+* Create ECS container instances
 *
 */
 
@@ -19,31 +19,31 @@ variable "aws_region" {
 
 variable "autoscaling_group_min_size" {
   type        = "string"
-  description = "Minimum desired number of ECS nodes"
+  description = "Minimum desired number of ECS container instances"
   default     = 1
 }
 
 variable "autoscaling_group_max_size" {
   type        = "string"
-  description = "Maximum desired number of ECS nodes"
+  description = "Maximum desired number of ECS container instances"
   default     = 1
 }
 
 variable "autoscaling_group_desired_capacity" {
   type        = "string"
-  description = "Desired number of ECS nodes"
+  description = "Desired number of ECS container instances"
   default     = 1
 }
 
 variable "ecs_image_id" {
   type        = "string"
-  description = "AMI ID to use for the ECS nodes"
+  description = "AMI ID to use for the ECS container instances"
   default     = "ami-2d386654"                    # Latest Amazon ECS optimised AMI
 }
 
 variable "ecs_instance_type" {
   type        = "string"
-  description = "ECS Node instance type"
+  description = "EC2 instance type for container instances"
   default     = "m4.xlarge"
 }
 
@@ -77,7 +77,7 @@ variable "stack_name" {
 locals {
   default_tags = {
     Terraform = "true"
-    Project   = "app-ecs-nodes"
+    Project   = "app-ecs-container-instances"
   }
 
   cluster_name = "${var.stack_name}-ecs-monitoring"
@@ -92,7 +92,7 @@ terraform {
   required_version = "= 0.11.7"
 
   backend "s3" {
-    key = "app-ecs-nodes.tfstate"
+    key = "app-ecs-container-instances.tfstate"
   }
 }
 
@@ -133,23 +133,23 @@ resource "aws_ecs_cluster" "prometheus_cluster" {
   name = "${local.cluster_name}"
 }
 
-data "template_file" "node_user_data" {
-  template = "${file("node-user-data.tpl")}"
+data "template_file" "container_instance_user_data" {
+  template = "${file("container-instance-user-data.tpl")}"
 
   vars {
     cluster_name = "${local.cluster_name}"
   }
 }
 
-module "ecs_node" {
+module "ecs_container_instance" {
   source = "terraform-aws-modules/autoscaling/aws"
 
-  name = "${var.stack_name}-ecs-node"
+  name = "${var.stack_name}-ecs-container-instance"
 
   key_name = "${var.ecs_instance_ssh_keyname}"
 
   # Launch configuration
-  lc_name = "${var.stack_name}-ecs-node"
+  lc_name = "${var.stack_name}-ecs-container-instance"
 
   image_id             = "${var.ecs_image_id}"
   instance_type        = "${var.ecs_instance_type}"
@@ -163,10 +163,10 @@ module "ecs_node" {
     },
   ]
 
-  user_data = "${data.template_file.node_user_data.rendered}"
+  user_data = "${data.template_file.container_instance_user_data.rendered}"
 
   # Auto scaling group
-  asg_name                  = "${var.stack_name}-ecs-node"
+  asg_name                  = "${var.stack_name}-ecs-container-instance"
   vpc_zone_identifier       = ["${element(data.terraform_remote_state.infra_networking.private_subnets, 0)}"]
   health_check_type         = "EC2"
   min_size                  = "${var.autoscaling_group_min_size}"
@@ -178,13 +178,13 @@ module "ecs_node" {
     local.default_tags,
     var.additional_tags,
     map("Stackname", "${var.stack_name}"),
-    map("Name", "${var.stack_name}-ecs_node")
+    map("Name", "${var.stack_name}-ecs-container-instance")
   )}"
 }
 
 ## Outputs
 
-output "ecs_node_asg_id" {
-  value       = "${module.ecs_node.this_autoscaling_group_id}"
-  description = "ecs-node ASG ID"
+output "ecs_container_instance_asg_id" {
+  value       = "${module.ecs_container_instance.this_autoscaling_group_id}"
+  description = "ecs-container-instance ASG ID"
 }
