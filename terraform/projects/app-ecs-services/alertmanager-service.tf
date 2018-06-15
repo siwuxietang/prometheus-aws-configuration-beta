@@ -104,6 +104,11 @@ resource "aws_ecs_service" "alertmanager_server" {
     container_name   = "alertmanager"
     container_port   = 9093
   }
+
+  placement_constraints {
+    type       = "memberOf"
+    expression = "attribute:prometheus-instance == prom-${count.index}"
+  }
 }
 
 #### alertmanager

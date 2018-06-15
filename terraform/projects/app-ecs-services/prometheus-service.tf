@@ -159,6 +159,11 @@ resource "aws_ecs_service" "prometheus_server" {
     container_name   = "auth-proxy"
     container_port   = 9090
   }
+
+  placement_constraints {
+    type       = "memberOf"
+    expression = "attribute:prometheus-instance == prom-${count.index}"
+  }
 }
 
 resource "aws_ecs_service" "paas_proxy_service" {
